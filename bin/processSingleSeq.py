@@ -41,6 +41,7 @@ def igBlast(nucFasta, headFasta):
     igCallsub = subprocess.Popen(igCall, shell=True, stdout=PIPE, stderr=PIPE)
     stdout, stderr = igCallsub.communicate()
     if not stderr:
+        os.remove(fileFasta)
         return stdout
     else:
         raise ValueError('Blast Not Possible {}'.format(fileFasta))
