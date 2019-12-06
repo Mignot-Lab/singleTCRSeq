@@ -1,3 +1,8 @@
+"""
+scripts to process TCR fasta sequencing file to derive junctinonal indices
+@author: Aditya Ambati ambati@stanford.edu, Mignot Lab, Stanford University
+"""
+
 from collections import defaultdict
 import subprocess
 from subprocess import PIPE
@@ -5,6 +10,7 @@ import os
 import re
 import argparse
 import logging
+from datetime import datetime
 
 
 def readData(filein):
@@ -41,8 +47,7 @@ def igBlast(nucFasta, headFasta):
 
 
 def parseBlast(stdOut, chain):
-    '''expects 
-    sequence and returns a string with junctional indices for alpha and beta chains
+    '''expects the blast stdout and the chain of the cdr3sequence and returns a string with junctional indices for alpha and beta chains
     '''
     parseCall = stdOut.split('\t')
     seqFasta = parseCall[1]
@@ -89,7 +94,7 @@ def processData(fileIn):
                 parse_line=line.strip('\n').split(',')
             if parse_line[1] and parse_line[2] and parse_line[3] and parse_line[0]:
                 make_key = ','.join([parse_line[1].strip(), parse_line[2].strip(), parse_line[3].strip()])
-            VB, VA, JA, VAalt, JAalt=parse_line[6], parse_line[12],parse_line[14].split(' ')[0], parse_line[18], parse_line[19].split(' ')[0]
+            #VB, VA, JA, VAalt, JAalt=parse_line[6], parse_line[12],parse_line[14].split(' ')[0], parse_line[18], parse_line[19].split(' ')[0]
             cdr3a = parse_line[15]
             cdr3b = parse_line[9]
             cdr3a_alt= parse_line[20]
@@ -124,3 +129,14 @@ def processData(fileIn):
     betaOut.close() 
 
 
+def main():
+    parser = argparse.ArgumentParser(description='A script to derive junctional indices from TCR fasta sequences')
+    parser.add_argument('-TCRFile', help='Summary csv file of single cell TCR calls from HIMC stanford', required=True)
+    args=parser.parse_args()
+    fileIn = args.TCRFile
+    now = datetime.now()
+    logFile='SingleTCR_'+now.strftime("%m_%d_%Y_%H_%M_%S")+'.log'
+    logging.basicConfig(filename=logFile,level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    processData(fileIn=fileIn)
+
+if __name__ == "__main__":main()
