@@ -44,6 +44,7 @@ def igBlast(nucFasta, headFasta):
         os.remove(fileFasta)
         return stdout
     else:
+        logging.info('BLAST FAILED {}'.format(fileFasta))
         raise ValueError('Blast Not Possible {}'.format(fileFasta))
 
 
@@ -56,29 +57,26 @@ def parseBlast(stdOut, chain):
     vEnd = int(parseCall[61])
     jStart = int(parseCall[68])
     jEnd = int(parseCall[69])
-    #cdr3 = parseCall[42]
+    cdr3 = parseCall[43]
     #cdr3St = int(parseCall[82])
     #cdr3En = int(parseCall[83])
     if chain == 'beta':
-        try:
+        if parseCall[64]: # check if a d match is present
             dStart = int(parseCall[64])
             dEnd = int(parseCall[65])
             vdJunction = seqFasta[vEnd:dStart]
-            djJunction = seqFasta[dEnd:jStart]
-            makeStr = ','.join([str(vStart)+':'+str(jEnd)+'>'+vdJunction+':'+djJunction, str(vEnd), str(dStart), str(dEnd), str(jStart)])
-            # makeStr = ','.join([str(cdr3St)+':'+str(cdr3En)+'>'+vdJunction+':'+djJunction, str(vEnd), str(dStart), str(dEnd), str(jStart)])
-            return makeStr
-        except:
-            ValueError
+            djJunction = seqFasta[dEnd:jStart] 
+            # make the string in the format <CDR3NUCIndex,vdjunctionNuc:djJunctionNuc,VendIndex,DstartIndex,DendIndex,jStart>
+            makeStr = ','.join([str(vStart)+':'+str(jEnd)+','+vdJunction+':'+djJunction, str(vEnd), str(dStart), str(dEnd), str(jStart)])
+        else: # assume that no d matches and make a vj junction
+            logging.info('D matches not present in  {}'.format(cdr3))
             vjJunction=seqFasta[vEnd:jStart-1]
-            makeStr = ','.join([str(vStart)+':'+str(jEnd)+'>'+vjJunction+':DJonly', str(vEnd), 'NA','NA', str(jStart-1)])
-            # makeStr = ','.join([str(cdr3St)+':'+str(cdr3En)+'>'+vjJunction+':DJonly', str(vEnd), 'NA','NA', str(jStart-1)])
-            return makeStr
-    else:
+            makeStr = ','.join([str(vStart)+':'+str(jEnd)+','+'NA:'+vjJunction, str(vEnd), 'NA', 'NA', str(jStart-1)])
+    else:# alphas have only the vj so we are golden
+        # make the string in the format <CDR3NUCIndex,vjJunctionNuc,VendIndex,jStart>
         vjJunction = seqFasta[vEnd:jStart-1]
-        makeStr = ','.join([str(vStart)+':'+str(jEnd)+'>'+vjJunction, str(vEnd), str(jStart-1)])
-        # makeStr = ','.join([str(cdr3St)+':'+str(cdr3En)+'>'+vjJunction, str(vEnd), str(jStart-1)])
-        return makeStr
+        makeStr = ','.join([str(vStart)+':'+str(jEnd)+','+vjJunction, str(vEnd), str(jStart-1)])
+    return makeStr
 
 def processData(fileIn):
     dataList = readData(filein=fileIn)
@@ -86,6 +84,7 @@ def processData(fileIn):
     betaList = set()
     alphaOut = open('temp/AlphaJunctions.csv', 'w')
     betaOut = open('temp/BetaJunctions.csv', 'w')
+    alphasProcessed, betasProcessed = 0,0
     # For every instance
     for n, line in enumerate(dataList):
         if n > 0:
@@ -107,6 +106,7 @@ def processData(fileIn):
                     alphaList.add(alphaNuc)
                     blastCall=igBlast(nucFasta = alphaNuc, headFasta=make_key+'_'+cdr3a)
                     if blastCall:
+                        alphasProcessed += 1
                         parseBlastcall = blastCall.decode().strip().split('\n')[-1]
                         outStr=parseBlast(stdOut=parseBlastcall, chain='alpha')
                         alphaOut.write(alphaNuc+','+outStr+'\n')
@@ -115,6 +115,7 @@ def processData(fileIn):
                     betaList.add(betaNuc)
                     blastCall=igBlast(nucFasta = betaNuc, headFasta=make_key+'_'+cdr3b)
                     if blastCall:
+                        betasProcessed += 1
                         parseBlastcall = blastCall.decode().strip().split('\n')[-1]
                         outStr=parseBlast(stdOut=parseBlastcall, chain='beta')
                         betaOut.write(betaNuc+','+outStr+'\n')
@@ -123,9 +124,12 @@ def processData(fileIn):
                     alphaList.add(alphaAltNuc)
                     blastCall=igBlast(nucFasta = alphaAltNuc, headFasta=make_key+'_'+cdr3a_alt)
                     if blastCall:
+                        alphasProcessed += 1
                         parseBlastcall = blastCall.decode().strip().split('\n')[-1]
                         outStr=parseBlast(stdOut=parseBlastcall, chain='alpha')
                         alphaOut.write(alphaAltNuc+','+outStr+'\n')
+    logging.info('PROCESSED {} BETAS AND {} ALPHA BLASTS'.format(betasProcessed, alphasProcessed))
+    logging.info('JUNCTION FILES WRITTEN TO {} & {}'.format('AlphaJunctions.csv','BetaJunctions.csv'))
     alphaOut.close()            
     betaOut.close() 
 
@@ -138,6 +142,7 @@ def main():
     now = datetime.now()
     logFile='SingleTCR_'+now.strftime("%m_%d_%Y_%H_%M_%S")+'.log'
     logging.basicConfig(filename=logFile,level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logging.info('INPUT FILE {}'.format(fileIn))
     processData(fileIn=fileIn)
 
 if __name__ == "__main__":main()
