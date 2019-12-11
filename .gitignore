@@ -1,2 +1,4 @@
 *.log
 temp/*.fasta
+data/*
+*.csv

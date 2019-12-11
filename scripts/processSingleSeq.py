@@ -3,24 +3,35 @@ scripts to process TCR fasta sequencing file to derive junctinonal indices
 @author: Aditya Ambati ambati@stanford.edu, Mignot Lab, Stanford University
 """
 
-from collections import defaultdict
-import subprocess
-from subprocess import PIPE
+import argparse
+import csv
+import logging
 import os
 import re
-import argparse
-import logging
+import subprocess
+from collections import defaultdict
 from datetime import datetime
+from subprocess import PIPE
 
-
-def readData(filein):
+#colNeeded = ('Subject', 'Peptide', 'Dx', 'CDR3a', 'TCRa sequence', 'CDR3b', 'TCRb sequence', 'alt CDR3a', 'alt TCRa sequence')
+#colNeeded = ('Subject', 'Peptide', 'Dx', 'CDR3a', 'TCRa.sequence', 'CDR3b', 'TCRb.sequence', 'alt.CDR3a', 'alt.TCRa.sequence')
+def readData(filein, colNeeded = ('Subject', 'Peptide', 'Dx', 'CDR3a', 'TCRa.sequence', 'CDR3b', 'TCRb.sequence', 'alt.CDR3a', 'alt.TCRa.sequence')):
     '''reader function of single cell summary file'''
     data=[]
+    headerDict =defaultdict(int)
+    header = ''
     with open(filein) as sseq_in:
-        print('READING DATA FROM FILE  {} '.format(filein))
-        for line in sseq_in:
-            data.append(line.strip('\n'))
-
+        logging.info('READING DATA FROM FILE  {} '.format(filein))
+        for n, line in enumerate(sseq_in):
+            dataParse=line.strip('\n').split(',')
+            if n > 0:
+                    dataList = ','.join([dataParse[n] for n in colId]) +'$'+line.strip('\n')
+                    data.append(dataList)
+            else:
+                headerDict={item.strip():n for n, item in enumerate(dataParse)}
+                header += line.strip('\n')
+                colId = [headerDict.get(item) for item in colNeeded]
+                print(headerDict, colId)
     return data
 
 
@@ -67,72 +78,79 @@ def parseBlast(stdOut, chain):
             vdJunction = seqFasta[vEnd:dStart]
             djJunction = seqFasta[dEnd:jStart] 
             # make the string in the format <CDR3NUCIndex,vdjunctionNuc:djJunctionNuc,VendIndex,DstartIndex,DendIndex,jStart>
-            makeStr = ','.join([str(vStart)+':'+str(jEnd)+','+vdJunction+':'+djJunction, str(vEnd), str(dStart), str(dEnd), str(jStart)])
+            makeStr = ' '.join([str(vStart)+':'+str(jEnd), vdJunction+':'+djJunction, str(vEnd), str(dStart), str(dEnd), str(jStart)])
         else: # assume that no d matches and make a vj junction
             logging.info('D matches not present in  {}'.format(cdr3))
             vjJunction=seqFasta[vEnd:jStart-1]
-            makeStr = ','.join([str(vStart)+':'+str(jEnd)+','+'NA:'+vjJunction, str(vEnd), 'NA', 'NA', str(jStart-1)])
+            makeStr = ' '.join([str(vStart)+':'+str(jEnd), 'NA:'+vjJunction, str(vEnd), 'NA', 'NA', str(jStart-1)])
     else:# alphas have only the vj so we are golden
         # make the string in the format <CDR3NUCIndex,vjJunctionNuc,VendIndex,jStart>
         vjJunction = seqFasta[vEnd:jStart-1]
-        makeStr = ','.join([str(vStart)+':'+str(jEnd)+','+vjJunction, str(vEnd), str(jStart-1)])
+        makeStr = ' '.join([str(vStart)+':'+str(jEnd), vjJunction, str(vEnd), str(jStart-1)])
     return makeStr
 
 def processData(fileIn):
-    dataList = readData(filein=fileIn)
+    data = readData(filein=fileIn) # length of 2 data[0] contains the calls, data[1] contains the header
+    #colNeeded = ('Subject', 'Peptide', 'Dx', 'CDR3a', 'TCRa sequence', 'CDR3b', 'TCRb sequence', 'alt CDR3a', 'alt TCRa sequence')
     alphaList = set()
     betaList = set()
     alphaOut = open('temp/AlphaJunctions.csv', 'w')
     betaOut = open('temp/BetaJunctions.csv', 'w')
     alphasProcessed, betasProcessed = 0,0
+    alphaJunc = {}
+    betaJunc = {}
     # For every instance
-    for n, line in enumerate(dataList):
-        if n > 0:
-            if ";" in line:
-                parse_line=line.strip('\n').split(';')
-            else:
-                parse_line=line.strip('\n').split(',')
-            if parse_line[1] and parse_line[2] and parse_line[3] and parse_line[0]:
-                make_key = ','.join([parse_line[1].strip(), parse_line[2].strip(), parse_line[3].strip()])
-            #VB, VA, JA, VAalt, JAalt=parse_line[6], parse_line[12],parse_line[14].split(' ')[0], parse_line[18], parse_line[19].split(' ')[0]
-            cdr3a = parse_line[15]
-            cdr3b = parse_line[9]
-            cdr3a_alt= parse_line[20]
-            alphaNuc = parse_line[24]
-            betaNuc = parse_line[23]
-            alphaAltNuc = parse_line[25]
-            if alphaNuc:
-                if alphaNuc not in alphaList:
-                    alphaList.add(alphaNuc)
-                    blastCall=igBlast(nucFasta = alphaNuc, headFasta=make_key+'_'+cdr3a)
-                    if blastCall:
-                        alphasProcessed += 1
-                        parseBlastcall = blastCall.decode().strip().split('\n')[-1]
-                        outStr=parseBlast(stdOut=parseBlastcall, chain='alpha')
-                        alphaOut.write(alphaNuc+','+outStr+'\n')
-            if betaNuc:
-                if betaNuc not in betaList:
-                    betaList.add(betaNuc)
-                    blastCall=igBlast(nucFasta = betaNuc, headFasta=make_key+'_'+cdr3b)
-                    if blastCall:
-                        betasProcessed += 1
-                        parseBlastcall = blastCall.decode().strip().split('\n')[-1]
-                        outStr=parseBlast(stdOut=parseBlastcall, chain='beta')
-                        betaOut.write(betaNuc+','+outStr+'\n')
-            if alphaAltNuc:
-                if alphaAltNuc not in alphaList:
-                    alphaList.add(alphaAltNuc)
-                    blastCall=igBlast(nucFasta = alphaAltNuc, headFasta=make_key+'_'+cdr3a_alt)
-                    if blastCall:
-                        alphasProcessed += 1
-                        parseBlastcall = blastCall.decode().strip().split('\n')[-1]
-                        outStr=parseBlast(stdOut=parseBlastcall, chain='alpha')
-                        alphaOut.write(alphaAltNuc+','+outStr+'\n')
+    for n,line in enumerate(data):
+        lineParse = line.split('$')
+        parse_line=lineParse[0].strip('\n').split(',')
+        if parse_line[0] and parse_line[1] and parse_line[2]:# only if sample id is present must we process
+            make_key = ','.join([parse_line[0].strip(), parse_line[1].strip(), parse_line[2].strip()])
+        cdr3a = parse_line[3]
+        cdr3b = parse_line[5]
+        cdr3a_alt= parse_line[7]
+        alphaNuc = parse_line[4]
+        betaNuc = parse_line[6]
+        alphaAltNuc = parse_line[8]
+        if betaNuc:
+            if betaNuc not in betaList:
+                betaList.add(betaNuc)
+                blastCall=igBlast(nucFasta = betaNuc, headFasta=make_key+'_'+cdr3b)
+                if blastCall:
+                    betasProcessed += 1
+                    parseBlastcall = blastCall.decode().strip().split('\n')[-1]
+                    outStr=parseBlast(stdOut=parseBlastcall, chain='beta')
+                    betaOut.write(betaNuc+','+outStr+'\n')
+                    betaJunc[betaNuc]=outStr
+        if alphaNuc:
+            if alphaNuc not in alphaList:
+                alphaList.add(alphaNuc)
+                blastCall=igBlast(nucFasta = alphaNuc, headFasta=make_key+'_'+cdr3a)
+                if blastCall:
+                    alphasProcessed += 1
+                    parseBlastcall = blastCall.decode().strip().split('\n')[-1]
+                    outStr=parseBlast(stdOut=parseBlastcall, chain='alpha')
+                    alphaOut.write(alphaNuc+','+outStr+'\n')
+                    alphaJunc[alphaNuc]=outStr
+        if alphaAltNuc:
+            if alphaAltNuc not in alphaList:
+                alphaList.add(alphaAltNuc)
+                blastCall=igBlast(nucFasta = alphaAltNuc, headFasta=make_key+'_'+cdr3a_alt)
+                if blastCall:
+                    alphasProcessed += 1
+                    parseBlastcall = blastCall.decode().strip().split('\n')[-1]
+                    outStr=parseBlast(stdOut=parseBlastcall, chain='alpha')
+                    alphaOut.write(alphaAltNuc+','+outStr+'\n')
+                    alphaJunc[alphaAltNuc]=outStr
     logging.info('PROCESSED {} BETAS AND {} ALPHA BLASTS'.format(betasProcessed, alphasProcessed))
     logging.info('JUNCTION FILES WRITTEN TO {} & {}'.format('AlphaJunctions.csv','BetaJunctions.csv'))
     alphaOut.close()            
-    betaOut.close() 
+    betaOut.close()
+    #return(alphaJunc, betaJunc)
 
+# def anntoteJunc(fileIn, alphaJunc, betaJunc):
+#     ## instantiate an empty file
+#     outFile = open(fileIn.replace('.csv', 'JunctionAnnotated.csv'), 'w')
+#     outFile.write(data[1]+'BetaJunc,AlphaJunc,AltAlphaJunc'+'\n')
 
 def main():
     parser = argparse.ArgumentParser(description='A script to derive junctional indices from TCR fasta sequences')
