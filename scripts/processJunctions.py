@@ -19,6 +19,7 @@ def parseJuncfiles(fileIn):
             nucDict[nucKey] = valueDict
     return nucDict
 
+
 def annotateCalls(fileIn, alphaJuncDict, betaJuncDict):
     '''This will take the single cell summary file and annotate every cdr3 in the string
     <CDR3NUCIndex,vdjunctionNuc:djJunctionNuc,VendIndex,DstartIndex,DendIndex,jStart> for beta

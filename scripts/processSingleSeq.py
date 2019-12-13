@@ -44,6 +44,8 @@ def updateProgress(progress):
     text = "\rProgress: [{0}] {1}% {2}".format( "="*block + " "*(barLength-block), round(progress*100, 2), status)
     sys.stdout.write(text)
     sys.stdout.flush()
+
+
 #colNeeded = ('Subject', 'Peptide', 'Dx', 'CDR3a', 'TCRa sequence', 'CDR3b', 'TCRb sequence', 'alt CDR3a', 'alt TCRa sequence')
 #colNeeded = ('Subject', 'Peptide', 'Dx', 'CDR3a', 'TCRa.sequence', 'CDR3b', 'TCRb.sequence', 'alt.CDR3a', 'alt.TCRa.sequence')
 def readData(filein, getCol=False, colNeeded = ('Subject', 'Peptide', 'Dx', 'CDR3a', 'TCRa.sequence', 'CDR3b', 'TCRb.sequence', 'alt.CDR3a', 'alt.TCRa.sequence')):
@@ -68,6 +70,7 @@ def readData(filein, getCol=False, colNeeded = ('Subject', 'Peptide', 'Dx', 'CDR
                 if getCol is True:
                     return colId
     return data
+
 
 def igBlast(nucFasta, headFasta):
     '''Main blast engine repeatedly is called for every cdr3 fasta to make blast queries, expects a nucleotide file and a header string and returns parsed stdout from blast'''
@@ -126,6 +129,7 @@ def parseBlast(stdOut, chain):
         else:
             makeStr = ' '.join([str(cdr3St)+':'+str(cdr3En), 'NA', str(vEnd), str(jStart)])
     return makeStr
+
 
 def processData(fileIn):
     ''' reads the datalist item and process the cdr3 to derive junctions which are written to temp files and 
@@ -195,6 +199,7 @@ def processData(fileIn):
     logging.info('JUNCTION FILES WRITTEN TO {} & {}'.format('AlphaJunctions.csv','BetaJunctions.csv'))
     alphaOut.close()
     betaOut.close()
+
 
 def main():
     parser = argparse.ArgumentParser(description='A script to derive junctional indices from TCR fasta sequences')
