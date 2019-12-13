@@ -1,3 +1,7 @@
+"""
+scripts to process TCR fasta sequencing file to annotate junctinonal indices
+@author: Aditya Ambati ambati@stanford.edu, Mignot Lab, Stanford University
+"""
 import argparse
 import logging
 from collections import defaultdict
@@ -53,17 +57,17 @@ def annotateCalls(fileIn, alphaJuncDict, betaJuncDict):
             else:
                 outFile.write(','+'\n')
 
-def main():
-    parser = argparse.ArgumentParser(description='A script to derive junctional indices from TCR fasta sequences')
-    parser.add_argument('-TCRFile', help='Summary csv file of single cell TCR calls from HIMC stanford', required=True)
-    args=parser.parse_args()
-    fileIn = args.TCRFile
-    now = datetime.now()
-    logFile='AnnotationJunction_'+now.strftime("%m_%d_%Y_%H_%M_%S")+'.log'
-    logging.basicConfig(filename=logFile,level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    logging.info('INPUT FILE {}'.format(fileIn))
-    alphaJuncDict = parseJuncfiles(fileIn='temp/AlphaJunctions.csv')
-    betaJuncDict = parseJuncfiles(fileIn='temp/BetaJunctions.csv')
-    annotateCalls(fileIn=fileIn, alphaJuncDict=alphaJuncDict, betaJuncDict=betaJuncDict)
+# def main():
+#     parser = argparse.ArgumentParser(description='A script to derive junctional indices from TCR fasta sequences')
+#     parser.add_argument('-TCRFile', help='Summary csv file of single cell TCR calls from HIMC stanford', required=True)
+#     args=parser.parse_args()
+#     fileIn = args.TCRFile
+#     now = datetime.now()
+#     logFile='AnnotationJunction_'+now.strftime("%m_%d_%Y_%H_%M_%S")+'.log'
+#     logging.basicConfig(filename=logFile,level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+#     logging.info('INPUT FILE {}'.format(fileIn))
+#     alphaJuncDict = parseJuncfiles(fileIn='temp/AlphaJunctions.csv')
+#     betaJuncDict = parseJuncfiles(fileIn='temp/BetaJunctions.csv')
+#     annotateCalls(fileIn=fileIn, alphaJuncDict=alphaJuncDict, betaJuncDict=betaJuncDict)
 
-if __name__ == "__main__":main()
+# if __name__ == "__main__":main()

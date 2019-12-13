@@ -2,3 +2,4 @@
 temp/*.fasta
 data/*
 *.csv
+*.R
