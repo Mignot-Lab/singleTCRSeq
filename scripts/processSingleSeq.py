@@ -6,6 +6,7 @@ scripts to process TCR fasta sequencing file to derive junctinonal indices
 import argparse
 import csv
 import logging
+import multiprocessing
 import os
 import re
 import subprocess
@@ -14,7 +15,6 @@ import time
 from collections import defaultdict
 from datetime import datetime
 from subprocess import PIPE
-import multiprocessing
 
 import processJunctions
 
@@ -211,10 +211,10 @@ def main():
     logging.basicConfig(filename=logFile,level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     logging.info('INPUT FILE {}'.format(fileIn))
     processData(fileIn=fileIn)
-    print('NOW READING JUNCTION FILES')
+    print('NOW READING JUNCTION FILES'+now.strftime("%m-%d-%Y %H:%M:%S"))
     alphaJuncDict = processJunctions.parseJuncfiles(fileIn='temp/AlphaJunctions.csv')
     betaJuncDict = processJunctions.parseJuncfiles(fileIn='temp/BetaJunctions.csv')
-    print('ANNOTATING JUNCTIONS FROM BASE FILE')
+    print('ANNOTATING JUNCTIONS FROM BASE FILE'+now.strftime("%m-%d-%Y %H:%M:%S"))
     processJunctions.annotateCalls(fileIn=fileIn, alphaJuncDict=alphaJuncDict, betaJuncDict=betaJuncDict)
     print('PROCESSED JUNCTION ANNOTATIONS AND OUTPUT WRITTEN TO {} {}'.format(fileIn.replace('.csv', 'JunctionAnnotated.csv'), now.strftime("%m-%d-%Y %H:%M:%S")))
 
